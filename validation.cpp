@@ -20,17 +20,17 @@ static bool closed(const std::vector<Point>& e) {
 }
 
 /// Max-tree of edge intervals.
-/// Stores bounds \c min and \c max, a value \a v (initially the min gradient
+/// Stores bounds \c beg and \c end, a value \a v (initially the min gradient
 /// on the interval, later log10 of NFA). If the edge is circular, the interval
-/// may loop and then max < min.
+/// may loop and then end < beg.
 struct Interval {
     Interval* parent;
     std::vector<Interval*> child;
-    int min, max;
+    int beg, end;
     float v; ///< First min gradient, then log10(NFA)
     bool loop; ///< For closed ege
 
-    Interval(int i, float v0): parent(0), min(i), max(i), v(v0), loop(false) {}
+    Interval(int i, float v0): parent(0), beg(i), end(i), v(v0), loop(false) {}
     ~Interval();
     void addChild(Interval* c);
     void add(int i, int ext);
@@ -51,22 +51,22 @@ void Interval::addChild(Interval* c) {
     child.push_back(c);
 }
 
-/// Add index \a i, adjusting \c min and \c max of interval. If the interval is
+/// Add index \a i, adjusting \c beg and \c end of interval. If the interval is
 /// looping, it needs \a ext, a point outside the interval.
 void Interval::add(int i, int ext) {
-    if(i<min && (!loop || ext<i))
-        min = i;
-    if(i>max && (!loop || i<ext))
-        max = i;
+    if(i<beg && (!loop || ext<i))
+        beg = i;
+    if(i>end && (!loop || i<ext))
+        end = i;
 }
 
-/// Integrate sub-intervals to update fields \c min and \c max.
+/// Integrate sub-intervals to update fields \c beg and \c end.
 void Interval::fillBounds(int ext) {
     std::vector<Interval*>::iterator it, end=child.end();
     for(it=child.begin(); it!=end; ++it) {
         (*it)->fillBounds(ext);
-        add((*it)->min, ext);
-        add((*it)->max, ext);
+        add((*it)->beg, ext);
+        add((*it)->end, ext);
     }
 }
 
@@ -156,10 +156,10 @@ void extract_valid_segments(const std::vector<Point>& e,
     }
     std::vector<Point> v;
     if(m->loop) {
-        v.insert(v.end(), e.begin()+m->min, e.end());
-        v.insert(v.end(), e.begin(), e.begin()+m->max+1);
+        v.insert(v.end(), e.begin()+m->beg, e.end());
+        v.insert(v.end(), e.begin(), e.begin()+m->end+1);
     } else
-        v.insert(v.end(), e.begin()+m->min, e.begin()+m->max+1);
+        v.insert(v.end(), e.begin()+m->beg, e.begin()+m->end+1);
     valid.push_back(v);
     for(; m->parent; m = m->parent) {
         std::vector<Interval*>::iterator it, end=m->parent->child.end();
@@ -233,27 +233,27 @@ void ED::validateEdge(const std::vector<Point>& e,
     for(size_t i=0; i<n; i++)  // Build tree edges
         if(i!=root && tree[i])
             tree[par[i]]->addChild(tree[i]);
-    const int ext=tree[root]->min; // Index of point outside any loop
+    const int ext=tree[root]->beg; // Index of point outside any loop
     if(circular) { // Tag circular intervals
         Interval* i1 = tree[0]? tree[0]: tree[par[0]];
         Interval* i2 = tree[n-1]? tree[n-1]: tree[par[n-1]];
         for(i1 = lca(i1,i2); i1->parent; i1=i1->parent) {
             i1->loop = true;
-            if(i1->min < ext)
-                i1->min=(int)n-1;
+            if(i1->beg < ext)
+                i1->beg=(int)n-1;
             else
-                i1->max=0;
+                i1->end=0;
         }
     }
     for(size_t i=0; i<n; i++) // Fill bounds (without sub-intervals)
         if(! tree[i])
             tree[par[i]]->add(i, ext);
     tree[root]->fillBounds(ext); // Integrate sub-intervals in computing bounds
-    tree[root]->min=0; tree[root]->max=(int)n-1; // Fix root bounds
+    tree[root]->beg=0; tree[root]->end=(int)n-1; // Fix root bounds
     for(size_t i=0; i<n; i++) // Compute log NFA
         if(tree[i]) {
-            int len = (tree[i]->loop? (int)n-tree[i]->max+tree[i]->min+1:
-                       tree[i]->max-tree[i]->min+1);
+            int len = (tree[i]->loop? (int)n-tree[i]->beg+tree[i]->end+1:
+                       tree[i]->end-tree[i]->beg+1);
             tree[i]->v = lTests+len*0.5f*lProba[tree[i]->v];
         }
     extract_valid_segments(e, tree[root], lEpsNFA, bSubLines, valid);
