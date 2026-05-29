@@ -28,14 +28,14 @@ struct Interval {
     std::vector<Interval*> child;
     int beg, end;
     float v; ///< First min gradient, then log10(NFA)
-    bool loop; ///< For closed ege
 
-    Interval(int i, float v0): parent(0), beg(i), end(i), v(v0), loop(false) {}
+    Interval(int i, float v0): parent(0), beg(i), end(i), v(v0) {}
     ~Interval();
+    bool loop() const { return end<beg; }
     void addChild(Interval* c);
     void add(int i, int ext);
     void fillBounds(int ext);
-    Interval* findMinValue();
+    const Interval* findMinValue() const;
 };
 
 /// Destructor. Recursive deallocation of all subtree.
@@ -54,9 +54,9 @@ void Interval::addChild(Interval* c) {
 /// Add index \a i, adjusting \c beg and \c end of interval. If the interval is
 /// looping, it needs \a ext, a point outside the interval.
 void Interval::add(int i, int ext) {
-    if(i<beg && (!loop || ext<i))
+    if(i<beg && (!loop() || ext<i))
         beg = i;
-    if(i>end && (!loop || i<ext))
+    if(i>end && (!loop() || i<ext))
         end = i;
 }
 
@@ -71,11 +71,11 @@ void Interval::fillBounds(int ext) {
 }
 
 /// Find interval with minimal value \c v in all subtree.
-Interval* Interval::findMinValue() {
-    Interval* min = this;
-    std::vector<Interval*>::iterator it, end=child.end();
+const Interval* Interval::findMinValue() const {
+    const Interval* min = this;
+    std::vector<Interval*>::const_iterator it, end=child.end();
     for(it=child.begin(); it!=end; ++it) {
-        Interval* m = (*it)->findMinValue();
+        const Interval* m = (*it)->findMinValue();
         if(m->v < min->v)
             min = m;
     }
@@ -145,9 +145,9 @@ static Interval* lca(Interval* i1, Interval* i2) {
 
 /// Step 3 of algorithm in ED::validateEdge.
 void extract_valid_segments(const std::vector<Point>& e,
-                            Interval* r, float lEpsNFA, bool bSubLines,
+                            const Interval* r, float lEpsNFA, bool bSubLines,
                             std::vector<std::vector<Point>>& valid) {
-    Interval* m = r->findMinValue();
+    const Interval* m = r->findMinValue();
     if(m->v > lEpsNFA)
         return;
     if(! bSubLines) {
@@ -155,19 +155,17 @@ void extract_valid_segments(const std::vector<Point>& e,
         return;
     }
     std::vector<Point> v;
-    if(m->loop) {
+    if(m->loop()) {
         v.insert(v.end(), e.begin()+m->beg, e.end());
         v.insert(v.end(), e.begin(), e.begin()+m->end+1);
     } else
         v.insert(v.end(), e.begin()+m->beg, e.begin()+m->end+1);
     valid.push_back(v);
-    for(; m->parent; m = m->parent) {
-        std::vector<Interval*>::iterator it, end=m->parent->child.end();
+    for(; m!=r; m = m->parent) {
+        std::vector<Interval*>::const_iterator it, end=m->parent->child.end();
         for(it=m->parent->child.begin(); it!=end; ++it)
-            if(*it!=m) {
-                (*it)->parent = 0;
+            if(*it!=m)
                 extract_valid_segments(e, *it, lEpsNFA, bSubLines, valid);
-            }
     }
 }
 
@@ -237,13 +235,11 @@ void ED::validateEdge(const std::vector<Point>& e,
     if(circular) { // Tag circular intervals
         Interval* i1 = tree[0]? tree[0]: tree[par[0]];
         Interval* i2 = tree[n-1]? tree[n-1]: tree[par[n-1]];
-        for(i1 = lca(i1,i2); i1->parent; i1=i1->parent) {
-            i1->loop = true;
+        for(i1 = lca(i1,i2); i1->parent; i1=i1->parent)
             if(i1->beg < ext)
                 i1->beg=(int)n-1;
             else
                 i1->end=0;
-        }
     }
     for(size_t i=0; i<n; i++) // Fill bounds (without sub-intervals)
         if(! tree[i])
@@ -252,7 +248,7 @@ void ED::validateEdge(const std::vector<Point>& e,
     tree[root]->beg=0; tree[root]->end=(int)n-1; // Fix root bounds
     for(size_t i=0; i<n; i++) // Compute log NFA
         if(tree[i]) {
-            int len = (tree[i]->loop? (int)n-tree[i]->beg+tree[i]->end+1:
+            int len = (tree[i]->loop()? (int)n-tree[i]->beg+tree[i]->end+1:
                        tree[i]->end-tree[i]->beg+1);
             tree[i]->v = lTests+len*0.5f*lProba[tree[i]->v];
         }
