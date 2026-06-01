@@ -28,6 +28,7 @@ set(CMAKE_CXX_STANDARD 11)
 add_executable(edgeDrawing
     main.cpp
     ED.cpp ED.h validation.cpp
+    maxTree.h
     Chain.cpp Chain.h
     image.cpp image.h
     io_png.c io_png.h

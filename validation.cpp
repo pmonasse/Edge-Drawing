@@ -7,6 +7,7 @@
  */
 
 #include "ED.h"
+#include "maxTree.h"
 #include <algorithm>
 #include <numeric>
 #include <cmath>
@@ -82,15 +83,6 @@ const Interval* Interval::findMinValue() const {
     return min;
 }
 
-/// Functor for sorting based on gradient along edge.
-struct CompareGradEdge {
-    const Image<int>& G;
-    const std::vector<Point>& E;
-    CompareGradEdge(const Image<int>& g, const std::vector<Point>& e)
-    : G(g), E(e) {}
-    bool operator()(int i, int j) const { return (G(E[i])<G(E[j])); }
-};
-
 /// A contrario validation. \a lEpsNFA is the log10 of detection threshold.
 /// Its normal value is 0, or negative for more requiring detection.
 /// @param lEpsNFA log10 of max NFA for validation. 
@@ -121,13 +113,6 @@ void ED::validateNFA(float lEpsNFA, bool bSubLines) {
     for(it=edges.begin(); it!=end; ++it)
         validateEdge(*it, lProba, lTests, lEpsNFA, bSubLines, valid);
     std::swap(edges, valid);
-}
-
-/// Find_root of Union/Find algorithm.
-int root(std::vector<int>& zpar, int i) {
-    if(zpar[i]==i)
-        return i;
-    return (zpar[i] = root(zpar, zpar[i]));
 }
 
 /// Lowest common ancestor on max-tree.
@@ -169,6 +154,36 @@ void extract_valid_segments(const std::vector<Point>& e,
     }
 }
 
+/// Functor for sorting based on gradient along edge.
+struct CompareGradEdge {
+    const Image<int>& G;
+    const std::vector<Point>& E;
+    CompareGradEdge(const Image<int>& g, const std::vector<Point>& e)
+    : G(g), E(e) {}
+    bool operator()(int i, int j) const { return (G(E[i])<G(E[j])); }
+};
+
+/// Functor for neighborhood of point inside an edge.
+struct NeighborhoodEdge {
+    typedef int* iterator;
+    int n; bool circular; int nbh[2];
+    NeighborhoodEdge(int n0, bool circ): n(n0), circular(circ) {}
+    std::pair<iterator,iterator> operator()(int j) {
+        std::pair<iterator,iterator> p(nbh,nbh);
+        int l = j-1;
+        if(circular && l<0)
+            l = (int)n-1;
+        if(l>=0)
+            *p.second++ = l;
+        l = j+1;
+        if(circular && l>=(int)n)
+            l = 0;
+        if(l<(int)n)
+            *p.second++ = l;
+        return p;
+    }
+};
+
 /// Append to \a valid the maximally contrasted segments of \a e.
 /// \a lProba gives the log10 probability of contrast at least index.
 /// \a lTests is log10 of the number of tests and \a lEpsNFA is log10 of the
@@ -181,54 +196,30 @@ void ED::validateEdge(const std::vector<Point>& e,
                       const std::vector<float>& lProba,
                       float lTests, float lEpsNFA, bool bSubLines,
                       std::vector<std::vector<Point>>& valid) const {
-    const size_t n=e.size();
-    const bool circular = closed(e);
-    std::vector<int> idx(n);
-    std::iota(idx.begin(), idx.end(), 0);
+    const int n=(int)e.size();
     if(! bSubLines) { // shortcut: if whole line is valid, no need for max-tree
-        int min=*std::min_element(idx.begin(), idx.end(), CompareGradEdge(G,e));
+        int min=0;
+        for(int i=1; i<n; i++)
+            if(G(e[min])<G(e[i]))
+                min=i;
         if(lTests+n*0.5f*lProba[G(e[min])] <= lEpsNFA) {
             valid.push_back(e);
             return;
         }
     }
-    std::sort(idx.begin(), idx.end(), CompareGradEdge(G,e));
-    std::vector<int> par(n,-1);
-    std::vector<int> zpar(n,-1);
-    // Build tree
-    for(int i=(int)n-1; i>=0; i--) {
-        int j=idx[i];
-        par[j] = zpar[j] = j;
-        int l = j-1;
-        if(circular && l<0)
-            l = (int)n-1;
-        if(l>=0 && zpar[l]>=0) {
-            int k = root(zpar,l);
-            par[k] = zpar[k] = j;
-        }
-        l = j+1;
-        if(circular && l>=(int)n)
-            l = 0;
-        if(l<(int)n && zpar[l]>=0) {
-            int k = root(zpar,l);
-            par[k] = zpar[k] = j;
-        }
-    }
-    // Canonize
-    for(size_t i=1; i<n; i++) {
-        int j=idx[i], k=par[j];
-        if(G(e[par[k]]) == G(e[k]))
-            par[j] = par[k];
-    }
-    const size_t root = idx[0];
+    const bool circular = closed(e);
+    CompareGradEdge cmp(G,e);
+    NeighborhoodEdge nbh(circular,n);
+    int root;
+    std::vector<int> par = max_tree(n, cmp, nbh, &root);
 
     std::vector<Interval*> tree(n, 0);
-    for(size_t i=0; i<n; i++) { // Build tree nodes
+    for(int i=0; i<n; i++) { // Build tree nodes
         int v = G(e[i]);
         if(i==root || G(e[par[i]])!=v)
             tree[i] = new Interval(i,v);
     }
-    for(size_t i=0; i<n; i++)  // Build tree edges
+    for(int i=0; i<n; i++)  // Build tree edges
         if(i!=root && tree[i])
             tree[par[i]]->addChild(tree[i]);
     const int ext=tree[root]->beg; // Index of point outside any loop
@@ -241,12 +232,12 @@ void ED::validateEdge(const std::vector<Point>& e,
             else
                 i1->end=0;
     }
-    for(size_t i=0; i<n; i++) // Fill bounds (without sub-intervals)
+    for(int i=0; i<n; i++) // Fill bounds (without sub-intervals)
         if(! tree[i])
             tree[par[i]]->add(i, ext);
     tree[root]->fillBounds(ext); // Integrate sub-intervals in computing bounds
     tree[root]->beg=0; tree[root]->end=(int)n-1; // Fix root bounds
-    for(size_t i=0; i<n; i++) // Compute log NFA
+    for(int i=0; i<n; i++) // Compute log NFA
         if(tree[i]) {
             int len = (tree[i]->loop()? (int)n-tree[i]->beg+tree[i]->end+1:
                        tree[i]->end-tree[i]->beg+1);
