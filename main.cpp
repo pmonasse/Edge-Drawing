@@ -59,8 +59,8 @@ int main(int argc, char **argv) {
     int lengthMin=10;
     float sigma=1.0f;
     float lEpsNFA=0;
-    bool bSubLines=false;
-    
+    int segLevel=0;
+
     CmdLine cmd;
     cmd.add( make_option('g', gradMin, "grad-min")
              .doc("Min gradient") );
@@ -72,8 +72,8 @@ int main(int argc, char **argv) {
              .doc("Sigma of Gaussian blur") );
     cmd.add( make_option('e', lEpsNFA, "epsNFA")
              .doc("log10(NFA) for validation, normally 0 or negative") );
-    cmd.add( make_option('S', bSubLines, "sublines")
-             .doc("Validate portions of lines") );
+    cmd.add( make_option('S', segLevel, "segLevel")
+             .doc("Segmentation level for valid edges") );
     try {
         cmd.process(argc, argv);
     } catch(const std::string& s) {
@@ -82,7 +82,11 @@ int main(int argc, char **argv) {
     }
     if(argc != 3) {
         std::cerr << "Usage: "<<argv[0] << " [options] in.png out.png\n" << cmd
-                  << "NFA validation only with -e and/or -S" << std::endl; 
+                  << "NFA validation only with -e and/or -S\n"
+                  << "segLevel:\n"
+                  << " 0: validate only full edges\n"
+                  << " 1: validate full edge if a segment is valid\n"
+                  << " other: validate only segments" << std::endl; 
         return 1;
     }
     if(gradMin < 1) {
@@ -114,7 +118,7 @@ int main(int argc, char **argv) {
     
     ED ed(G, Theta, gradMin, anchorGap, lengthMin);
     if(cmd.used('e') || cmd.used('S'))
-        ed.validateNFA(lEpsNFA, bSubLines);
+        ed.validateNFA(lEpsNFA, segLevel);
 
     unsigned char* out = new unsigned char[3*w*h];
     std::fill_n(out, 3*w*h, 0);

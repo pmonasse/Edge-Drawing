@@ -17,7 +17,7 @@ class ED {
 public:
     ED(const Image<int>& G, const Image<float>& Theta,
        int gradMin=6, int anchorGap=2, int minPathLen=10);
-    void validateNFA(float lEpsNFA=0, bool bSublines=false);
+    void validateNFA(float lEpsNFA=0, int segLevel=0);
 
     std::vector<std::vector<Point>> edges;
 

@@ -37,6 +37,7 @@ struct Interval {
     void add(int i, int ext);
     void fillBounds(int ext);
     const Interval* findMinValue() const;
+    std::vector<Point> segment(const std::vector<Point>& e) const;
 };
 
 /// Destructor. Recursive deallocation of all subtree.
@@ -83,11 +84,32 @@ const Interval* Interval::findMinValue() const {
     return min;
 }
 
+/// Extract segment from full edge.
+std::vector<Point> Interval::segment(const std::vector<Point>& e) const {
+    std::vector<Point> v;
+    if(loop()) {
+        v.insert(v.end(), e.begin()+beg, e.end());
+        v.insert(v.end(), e.begin(), e.begin()+end+1);
+    } else
+        v.insert(v.end(), e.begin()+beg, e.begin()+end+1);
+    return v;
+}
+
+/// Find index of minimum of \a G among points in \a e.
+int min(const Image<int>& G, const std::vector<Point>& e) {
+    const int n=(int)e.size();
+    int min=G(e[0]);
+    for(int i=1; i<n; i++)
+        if(min<G(e[i]))
+            min=G(e[i]);
+    return min;
+}
+
 /// A contrario validation. \a lEpsNFA is the log10 of detection threshold.
 /// Its normal value is 0, or negative for more requiring detection.
 /// @param lEpsNFA log10 of max NFA for validation. 
-/// @param bSubLines Validate only portions of lines.
-void ED::validateNFA(float lEpsNFA, bool bSubLines) {
+/// @param segLevel Segmentation level (0,1,other).
+void ED::validateNFA(float lEpsNFA, int segLevel) {
     for(Point p={1,1}; p.y+1<S.h; p.y++)
         for(p.x=1; p.x+1<S.w; p.x++)
             S(p) = G(p)<minGrad? 0: ANCHOR;
@@ -105,53 +127,25 @@ void ED::validateNFA(float lEpsNFA, bool bSubLines) {
 
     int nTests = 0;
     std::vector<std::vector<Point>>::const_iterator it, end=edges.end();
-    for(it=edges.begin(); it!=end; ++it)
-        nTests += it->size()*(it->size()+1)/2;
-    const float lTests = log10(nTests);
+    for(it=edges.begin(); it!=end; ++it) {
+        int n=(int)it->size();
+        nTests += closed(*it)? n*(n-1)+1: n*(n+1)/2;
+    }
+    const float lTestsWhole=log10(edges.size()), lTests = log10(nTests);
 
     std::vector<std::vector<Point>> valid;
-    for(it=edges.begin(); it!=end; ++it)
-        validateEdge(*it, lProba, lTests, lEpsNFA, bSubLines, valid);
+    for(it=edges.begin(); it!=end; ++it) {
+        if(segLevel==0 || segLevel==1) { // Test whole line valid
+            int gmin = min(G, *it);
+            if(lTestsWhole+it->size()*0.5f*lProba[gmin] <= lEpsNFA) {
+                valid.push_back(*it);
+                continue;
+            }
+        }
+        if(segLevel!=0)
+            validateEdge(*it, lProba, lTests, lEpsNFA, segLevel!=1, valid);
+    }
     std::swap(edges, valid);
-}
-
-/// Lowest common ancestor on max-tree.
-/// Rely on increasing value while going down-tree.
-static Interval* lca(Interval* i1, Interval* i2) {
-    while(i1 != i2) {
-        assert(i1 && i2);
-        if(i2->v <= i1->v)
-            i1 = i1->parent;
-        else
-            i2 = i2->parent;
-    }
-    return i1;
-}
-
-/// Step 3 of algorithm in ED::validateEdge.
-void extract_valid_segments(const std::vector<Point>& e,
-                            const Interval* r, float lEpsNFA, bool bSubLines,
-                            std::vector<std::vector<Point>>& valid) {
-    const Interval* m = r->findMinValue();
-    if(m->v > lEpsNFA)
-        return;
-    if(! bSubLines) {
-        valid.push_back(e);
-        return;
-    }
-    std::vector<Point> v;
-    if(m->loop()) {
-        v.insert(v.end(), e.begin()+m->beg, e.end());
-        v.insert(v.end(), e.begin(), e.begin()+m->end+1);
-    } else
-        v.insert(v.end(), e.begin()+m->beg, e.begin()+m->end+1);
-    valid.push_back(v);
-    for(; m!=r; m = m->parent) {
-        std::vector<Interval*>::const_iterator it, end=m->parent->child.end();
-        for(it=m->parent->child.begin(); it!=end; ++it)
-            if(*it!=m)
-                extract_valid_segments(e, *it, lEpsNFA, bSubLines, valid);
-    }
 }
 
 /// Functor for sorting based on gradient along edge.
@@ -184,6 +178,87 @@ struct NeighborhoodEdge {
     }
 };
 
+/// Create nodes of the max-tree. It creates one node for each canonical element
+/// in \a par. Index corresponding to non-canonical elements are null pointers.
+std::vector<Interval*> build_tree_nodes(const Image<int>& G,
+                                        const std::vector<Point>& e,
+                                        const std::vector<int>& par, int root) {
+    int n = (int)par.size();
+    std::vector<Interval*> tree(n, 0);
+    tree[root] = new Interval(root, G(e[root]));
+    for(int i=0; i<n; i++) { // Build tree nodes
+        int v = G(e[i]);
+        if(G(e[par[i]]) != v)
+            tree[i] = new Interval(i,v);
+    }
+    return tree;
+}
+
+/// Create edges of the max-tree.
+void build_tree_edges(std::vector<Interval*>& tree,
+                      const std::vector<int>& par, int root) {
+    int n = (int)par.size();
+    for(int i=0; i<n; i++)  // Build tree edges
+        if(i!=root && tree[i])
+            tree[par[i]]->addChild(tree[i]);
+}
+
+/// Lowest common ancestor on max-tree.
+/// Rely on increasing value while going down-tree.
+static Interval* lca(Interval* i1, Interval* i2) {
+    while(i1 != i2) {
+        assert(i1 && i2);
+        if(i2->v <= i1->v)
+            i1 = i1->parent;
+        else
+            i2 = i2->parent;
+    }
+    return i1;
+}
+
+/// Adjust field beg or end for circular intervals.
+void tag_circular_intervals(std::vector<Interval*>& tree,
+                            const std::vector<int>& par, int ext) {
+    Interval* i1 = tree[0]? tree[0]: tree[par[0]];
+    Interval* i2 = tree.back()? tree.back(): tree[par[tree.size()-1]];
+    for(i1 = lca(i1,i2); i1->parent; i1=i1->parent)
+        if(i1->beg < ext)
+            i1->beg=(int)tree.size()-1;
+        else
+            i1->end=0;
+}
+
+/// Fill bounds beg and end of every interval.
+void fill_bounds(std::vector<Interval*>& tree,
+                 const std::vector<int>& par, int root, int ext) {
+    int n = (int)par.size();
+    for(int i=0; i<n; i++) // Fill bounds (without sub-intervals)
+        if(! tree[i])
+            tree[par[i]]->add(i, ext);
+    tree[root]->fillBounds(ext); // Integrate sub-intervals in computing bounds
+    tree[root]->beg=0; tree[root]->end=(int)n-1; // Fix root bounds
+}
+
+/// Step 3 of algorithm in ED::validateEdge.
+void extract_valid_segments(const std::vector<Point>& e,
+                            const Interval* r, float lEpsNFA, bool bSubLines,
+                            std::vector<std::vector<Point>>& valid) {
+    const Interval* m = r->findMinValue();
+    if(m->v > lEpsNFA)
+        return;
+    if(! bSubLines) {
+        valid.push_back(e);
+        return;
+    }
+    valid.push_back(m->segment(e));
+    for(; m!=r; m = m->parent) {
+        std::vector<Interval*>::const_iterator it, end=m->parent->child.end();
+        for(it=m->parent->child.begin(); it!=end; ++it)
+            if(*it!=m)
+                extract_valid_segments(e, *it, lEpsNFA, bSubLines, valid);
+    }
+}
+
 /// Append to \a valid the maximally contrasted segments of \a e.
 /// \a lProba gives the log10 probability of contrast at least index.
 /// \a lTests is log10 of the number of tests and \a lEpsNFA is log10 of the
@@ -197,46 +272,18 @@ void ED::validateEdge(const std::vector<Point>& e,
                       float lTests, float lEpsNFA, bool bSubLines,
                       std::vector<std::vector<Point>>& valid) const {
     const int n=(int)e.size();
-    if(! bSubLines) { // shortcut: if whole line is valid, no need for max-tree
-        int min=0;
-        for(int i=1; i<n; i++)
-            if(G(e[min])<G(e[i]))
-                min=i;
-        if(lTests+n*0.5f*lProba[G(e[min])] <= lEpsNFA) {
-            valid.push_back(e);
-            return;
-        }
-    }
     const bool circular = closed(e);
     CompareGradEdge cmp(G,e);
-    NeighborhoodEdge nbh(circular,n);
+    NeighborhoodEdge nbh(n,circular);
     int root;
     std::vector<int> par = max_tree(n, cmp, nbh, &root);
 
-    std::vector<Interval*> tree(n, 0);
-    for(int i=0; i<n; i++) { // Build tree nodes
-        int v = G(e[i]);
-        if(i==root || G(e[par[i]])!=v)
-            tree[i] = new Interval(i,v);
-    }
-    for(int i=0; i<n; i++)  // Build tree edges
-        if(i!=root && tree[i])
-            tree[par[i]]->addChild(tree[i]);
+    std::vector<Interval*> tree = build_tree_nodes(G, e, par, root);
+    build_tree_edges(tree, par, root);
     const int ext=tree[root]->beg; // Index of point outside any loop
-    if(circular) { // Tag circular intervals
-        Interval* i1 = tree[0]? tree[0]: tree[par[0]];
-        Interval* i2 = tree[n-1]? tree[n-1]: tree[par[n-1]];
-        for(i1 = lca(i1,i2); i1->parent; i1=i1->parent)
-            if(i1->beg < ext)
-                i1->beg=(int)n-1;
-            else
-                i1->end=0;
-    }
-    for(int i=0; i<n; i++) // Fill bounds (without sub-intervals)
-        if(! tree[i])
-            tree[par[i]]->add(i, ext);
-    tree[root]->fillBounds(ext); // Integrate sub-intervals in computing bounds
-    tree[root]->beg=0; tree[root]->end=(int)n-1; // Fix root bounds
+    if(circular)
+        tag_circular_intervals(tree, par, ext);
+    fill_bounds(tree, par, root, ext);
     for(int i=0; i<n; i++) // Compute log NFA
         if(tree[i]) {
             int len = (tree[i]->loop()? (int)n-tree[i]->beg+tree[i]->end+1:
