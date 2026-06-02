@@ -8,8 +8,6 @@
 
 #include "ED.h"
 #include "maxTree.h"
-#include <algorithm>
-#include <numeric>
 #include <cmath>
 #include <cassert>
 
