@@ -38,7 +38,7 @@ struct Interval {
     std::vector<Point> segment(const std::vector<Point>& e) const;
 };
 
-/// Destructor. Recursive deallocation of all subtree.
+/// Destructor: Recursive deallocation of all subtree.
 Interval::~Interval() {
     std::vector<Interval*>::iterator it, end=child.end();
     for(it=child.begin(); it!=end; ++it)
@@ -51,8 +51,9 @@ void Interval::addChild(Interval* c) {
     child.push_back(c);
 }
 
-/// Add index \a i, adjusting \c beg and \c end of interval. If the interval is
-/// looping, it needs \a ext, a point outside the interval.
+/// Add index \a i, adjusting \c beg and \c end of interval.
+/// \details It becomes the smallest containing interval containing index \a i.
+/// If the interval loops, it needs \a ext, a point outside the interval.
 void Interval::add(int i, int ext) {
     if(i<beg && (!loop() || ext<i))
         beg = i;
@@ -215,6 +216,9 @@ static Interval* lca(Interval* i1, Interval* i2) {
 }
 
 /// Adjust field beg or end for circular intervals.
+/// \details Initially, intervals are singletons. This function finds all
+/// intervals that loop (assuming the edge is circular) and adjusts their field
+/// \c beg (to max) or \c end (to min) ensuring exclusion of \a ext.
 void tag_circular_intervals(std::vector<Interval*>& tree,
                             const std::vector<int>& par, int ext) {
     Interval* i1 = tree[0]? tree[0]: tree[par[0]];
@@ -227,6 +231,9 @@ void tag_circular_intervals(std::vector<Interval*>& tree,
 }
 
 /// Fill bounds beg and end of every interval.
+/// \details Initally, they are all singletons based on canonical points. This
+/// involves adding first the private pixels of each node, then cumulating
+/// descendants.
 void fill_bounds(std::vector<Interval*>& tree,
                  const std::vector<int>& par, int root, int ext) {
     int n = (int)par.size();
