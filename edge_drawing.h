@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: MPL-2.0
 /**
- * @file ED.h
+ * @file edge_drawing.h
  * @brief edge drawing
  * @author Adle Ben Salem
  *         Pascal Monasse <pascal.monasse@enpc.fr>
  * @date 2025-2026
  */
 
-#ifndef ED_H
-#define ED_H
+#ifndef EDGE_DRAWING_H
+#define EDGE_DRAWING_H
 
-#include "Chain.h"
+#include "chain_tree.h"
 #include "image.h"
 
+/// Edge drawing algorithm.
 class ED {
 public:
     ED(const Image<int>& G, const Image<float>& Theta,
@@ -39,11 +40,11 @@ private:
     std::vector<int> cumulHistoGradAnchors() const;
     std::vector<Point> sortedAnchors() const;
     void joinAnchors();
-    void exploreChain(StackNode node, Chain* chain, std::stack<StackNode>& S);
+    void exploreChain(StackNode, ChainTree*, std::stack<StackNode>&);
     bool nextPixelChain(StackNode& node);
-    void buildChainTree(Chain* root, Point p);
-    void extractEdgesFromTree(Chain* root);
-    void buildRootEdge(Chain* root);
+    void buildChainTree(ChainTree* root, Point p);
+    void extractEdgesFromTree(ChainTree* root);
+    void buildRootEdge(ChainTree* root);
     void validateEdge(const std::vector<Point>& e,
                       const std::vector<float>& lProba,
                       float lTests, float lEpsNFA, bool bSubLines,

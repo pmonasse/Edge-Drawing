@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 /**
- * @file ED.cpp
+ * @file edge_drawing.cpp
  * @brief edge drawing
  * @author Adle Ben Salem
  *         Pascal Monasse <pascal.monasse@enpc.fr>
@@ -8,9 +8,7 @@
  */
 // Code for NFA validation is in file validation.cpp
 
-#include "ED.h"
-#include "Chain.h"
-#include <stack>
+#include "edge_drawing.h"
 #include <algorithm>
 #include <numeric>
 #include <cmath>
@@ -29,13 +27,13 @@ inline Point neighbor(Point p, Direction d) {
     case RIGHT: ++q.x; break;
     case UP: --q.y; break;
     case DOWN: ++q.y; break;
-    case UNDEFINED: default: break;
+    default: break;
     }
     return q;
 }
 
 /// Erase chain-tree in state image \a S.
-void erase_chain(const Chain* c, Image<ED::State>& S) {
+void erase_chain(const ChainTree* c, Image<ED::State>& S) {
     if(! c) return;
     std::vector<Point>::const_iterator i;
     for(i=c->pts.begin(); i!=c->pts.end(); ++i)
@@ -115,7 +113,7 @@ void ED::joinAnchors() {
     for(it=anchors.rbegin(); it!=end; ++it) {
         const Point& p = *it;
         if(S(p)!=ANCHOR) continue;
-        Chain* root = new Chain;
+        ChainTree* root = new ChainTree;
         buildChainTree(root, p);
         int l0 = root->child[0]->length();
         int l1 = root->child[1]->length();
@@ -156,7 +154,7 @@ bool ED::nextPixelChain(StackNode& node) {
 
 /// Explore edge until finding a changed direction, hitting an edge pixel, or
 /// too low gradient. In the first case, two anchors are appended to \a stack.
-void ED::exploreChain(StackNode node, Chain* chain,
+void ED::exploreChain(StackNode node, ChainTree* chain,
                       std::stack<StackNode>& stack) {
     Orientation ori = orient(chain->dir);
     while (O(node.pos) == ori) {
@@ -177,7 +175,7 @@ void ED::exploreChain(StackNode node, Chain* chain,
 }
 
 /// Build chain tree issued from anchor point \a p.
-void ED::buildChainTree(Chain* root, Point p) {
+void ED::buildChainTree(ChainTree* root, Point p) {
     root->pts.push_back(p);
     S(p) = EDGE;
     std::stack<StackNode> stack;
@@ -186,16 +184,16 @@ void ED::buildChainTree(Chain* root, Point p) {
     while(! stack.empty()) {
         StackNode node = stack.top();
         stack.pop();
-        Chain* c = new Chain(node.dir, node.parent);
+        ChainTree* c = new ChainTree(node.dir, node.parent);
         exploreChain(node, c, stack);
     }
 }
 
 /// Build edge segment from the two children of \a root.
-void ED::buildRootEdge(Chain* root) {
+void ED::buildRootEdge(ChainTree* root) {
     edges.emplace_back();
     std::vector<Point>& v = edges.back();
-    Chain* child = root->child[0];
+    ChainTree* child = root->child[0];
     v.insert(v.end(), child->pts.rbegin(), child->pts.rend());
     v.push_back(root->pts.back());
     child = root->child[1];
@@ -205,13 +203,13 @@ void ED::buildRootEdge(Chain* root) {
 /// From the chain tree at \a root, extract edge segments.
 /// Find the longest paths from nodes, prune them, yielding orphan trees,
 /// which are themselves handled in the same manner.
-void ED::extractEdgesFromTree(Chain* root) {
-    std::stack<Chain*> orphans;
+void ED::extractEdgesFromTree(ChainTree* root) {
+    std::stack<ChainTree*> orphans;
     for(int i=0; i<2; i++)
         root->child[i]->pruneLongestPath(orphans);
     buildRootEdge(root);
     while(!orphans.empty()) {
-        Chain* c = orphans.top();
+        ChainTree* c = orphans.top();
         orphans.pop();
         if(c->len>=minLen) {
             c->pruneLongestPath(orphans);

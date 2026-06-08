@@ -7,7 +7,7 @@
  * @date 2025-2026
  */
 
-#include "ED.h"
+#include "edge_drawing.h"
 #include "image.h"
 #include "cmdLine.h"
 #include "io_png.h"

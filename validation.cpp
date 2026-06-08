@@ -6,7 +6,7 @@
  * @date 2026
  */
 
-#include "ED.h"
+#include "edge_drawing.h"
 #include "maxTree.h"
 #include <cmath>
 #include <cassert>
