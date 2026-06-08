@@ -12,6 +12,7 @@
 
 #include "chain_tree.h"
 #include "image.h"
+class StackNode;
 
 /// Edge drawing algorithm.
 class ED {

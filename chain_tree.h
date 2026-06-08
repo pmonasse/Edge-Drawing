@@ -33,14 +33,4 @@ struct ChainTree {
     void pruneLongestPath(std::stack<ChainTree*>& orphans);
 };
 
-/// Anchor for exploration, stored in a stack.
-struct StackNode {
-    Point pos;
-    Direction dir;         // Direction of exploration
-    ChainTree* parent;
-
-    StackNode(Point p, Direction d, ChainTree* par)
-    : pos(p), dir(d), parent(par) {}
-};
-
 #endif

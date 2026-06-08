@@ -13,6 +13,16 @@
 #include <numeric>
 #include <cmath>
 
+/// Anchor for exploration, stored in a stack.
+struct StackNode {
+    Point pos;
+    Direction dir;         // Direction of exploration
+    ChainTree* parent;
+
+    StackNode(Point p, Direction d, ChainTree* par)
+    : pos(p), dir(d), parent(par) {}
+};
+
 inline ED::Orientation orient(Direction d) {
     return (d==LEFT || d== RIGHT)? ED::HORIZONTAL: ED::VERTICAL;
 }
