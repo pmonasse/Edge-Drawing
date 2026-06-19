@@ -95,11 +95,11 @@ std::vector<Point> Interval::segment(const std::vector<Point>& e) const {
 }
 
 /// Find index of minimum of \a G among points in \a e.
-int min(const Image<int>& G, const std::vector<Point>& e) {
+int min_value_path(const Image<int>& G, const std::vector<Point>& e) {
     const int n=(int)e.size();
     int min=G(e[0]);
     for(int i=1; i<n; i++)
-        if(min<G(e[i]))
+        if(min>G(e[i]))
             min=G(e[i]);
     return min;
 }
@@ -135,8 +135,9 @@ void ED::validateNFA(float lEpsNFA, int segLevel) {
     std::vector<std::vector<Point>> valid;
     for(it=edges.begin(); it!=end; ++it) {
         if(segLevel==0 || segLevel==1) { // Test whole line valid
-            int gmin = min(G, *it);
-            if(lTestsWhole+it->size()*0.5f*lProba[gmin] <= lEpsNFA) {
+            int gmin = min_value_path(G, *it);
+            float l = (segLevel==0)? lTestsWhole: lTests;
+            if(l+it->size()*0.5f*lProba[gmin] <= lEpsNFA) {
                 valid.push_back(*it);
                 continue;
             }
