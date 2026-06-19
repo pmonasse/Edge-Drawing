@@ -64,7 +64,7 @@ int main(int argc, char **argv) {
     CmdLine cmd;
     cmd.add( make_option('g', gradMin, "grad-min")
              .doc("Min gradient") );
-    cmd.add( make_option('a', anchorGap, "angchor-gap")
+    cmd.add( make_option('a', anchorGap, "anchor-gap")
              .doc("Min gap of gradient for anchor") );
     cmd.add( make_option('l', lengthMin, "length-min")
              .doc("Min length of edge segment") );
