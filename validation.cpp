@@ -166,13 +166,13 @@ struct NeighborhoodEdge {
         std::pair<iterator,iterator> p(nbh,nbh);
         int l = j-1;
         if(circular && l<0)
-            l = (int)n-1;
+            l = n-1;
         if(l>=0)
             *p.second++ = l;
         l = j+1;
-        if(circular && l>=(int)n)
+        if(circular && l>=n)
             l = 0;
-        if(l<(int)n)
+        if(l<n)
             *p.second++ = l;
         return p;
     }
