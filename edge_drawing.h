@@ -41,7 +41,7 @@ private:
     std::vector<int> cumulHistoGradAnchors() const;
     std::vector<Point> sortedAnchors() const;
     void joinAnchors();
-    void exploreChain(StackNode, ChainTree*, std::stack<StackNode>&);
+    void exploreChain(StackNode&, ChainTree*, std::stack<StackNode>&);
     bool nextPixelChain(StackNode& node);
     void buildChainTree(ChainTree* root, Point p);
     void extractEdgesFromTree(ChainTree* root);

@@ -23,10 +23,8 @@ struct ChainTree {
     ChainTree* child[2]; /// Child nodes
     int len; /// Max length to leaf
     int path; /// Child in the path to most distant leaf
-    const Direction dir; /// Direction of exploration
 
-    ChainTree();
-    ChainTree(Direction direction, ChainTree* parent);
+    ChainTree(ChainTree* parent=0);
     ~ChainTree();
 
     int length();

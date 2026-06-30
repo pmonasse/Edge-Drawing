@@ -164,10 +164,10 @@ bool ED::nextPixelChain(StackNode& node) {
 
 /// Explore edge until finding a changed direction, hitting an edge pixel, or
 /// too low gradient. In the first case, two anchors are appended to \a stack.
-void ED::exploreChain(StackNode node, ChainTree* chain,
+void ED::exploreChain(StackNode& node, ChainTree* chain,
                       std::stack<StackNode>& stack) {
-    Orientation ori = orient(chain->dir);
-    while (O(node.pos) == ori) {
+    Orientation ori = orient(node.dir);
+    do {
         for(int i=0; i<2; i++) { // Remove adjacent anchors
             Point p = neighbor(node.pos, dir(!ori,i));
             if(S(p) == ANCHOR)
@@ -177,7 +177,7 @@ void ED::exploreChain(StackNode node, ChainTree* chain,
             return;
         chain->pts.push_back(node.pos);
         S(node.pos) = EDGE;
-    }
+    } while(O(node.pos) == ori);
 
     // Add new nodes in perpendicular direction
     stack.emplace(node.pos, dir(!ori,0), chain);
@@ -194,7 +194,7 @@ void ED::buildChainTree(ChainTree* root, Point p) {
     while(! stack.empty()) {
         StackNode node = stack.top();
         stack.pop();
-        ChainTree* c = new ChainTree(node.dir, node.parent);
+        ChainTree* c = new ChainTree(node.parent);
         exploreChain(node, c, stack);
     }
 }

@@ -9,15 +9,9 @@
 
 #include "chain_tree.h"
 
-/// Constructor
-ChainTree::ChainTree()
-: len(0), path(-1), dir(LEFT) {
-    child[0] = child[1] = nullptr;
-}
-
 /// Constructor with direction and parent
-ChainTree::ChainTree(Direction direction, ChainTree* p)
-: len(0), path(-1), dir(direction) {
+ChainTree::ChainTree(ChainTree* p)
+: len(0), path(-1) {
     child[0] = child[1] = nullptr;
     if(p) {
         int i = p->child[0]? 1: 0;
