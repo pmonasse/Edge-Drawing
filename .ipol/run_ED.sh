@@ -23,4 +23,4 @@ if [ "$8" = "true" ]; then
     tjunc="-t tjunc.png";
 fi
 
-$bin/build/edgeDrawing $valid -g $grad -a $gap -l $length -s $sigma $tjunc $input_0 edges.png
+echo $bin/build/edgeDrawing $valid -g $grad -a $gap -l $length -s $sigma $tjunc $input_0 edges.png
