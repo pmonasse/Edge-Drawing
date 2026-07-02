@@ -15,12 +15,12 @@
 
 /// Anchor for exploration, stored in a stack.
 struct StackNode {
+    ChainTree* parent;
     Point pos;
     Direction dir;         // Direction of exploration
-    ChainTree* parent;
 
-    StackNode(Point p, Direction d, ChainTree* par)
-    : pos(p), dir(d), parent(par) {}
+    StackNode(Direction d, ChainTree* par)
+    : parent(par), pos(par->pts.back()), dir(d) {}
 };
 
 inline ED::Orientation orient(Direction d) {
@@ -180,8 +180,8 @@ void ED::exploreChain(StackNode& node, ChainTree* chain,
     } while(O(node.pos) == ori);
 
     // Add new nodes in perpendicular direction
-    stack.emplace(node.pos, dir(!ori,0), chain);
-    stack.emplace(node.pos, dir(!ori,1), chain);
+    stack.emplace(dir(!ori,0), chain);
+    stack.emplace(dir(!ori,1), chain);
 }
 
 /// Build chain tree issued from anchor point \a p.
@@ -189,8 +189,8 @@ void ED::buildChainTree(ChainTree* root, Point p) {
     root->pts.push_back(p);
     S(p) = EDGE;
     std::stack<StackNode> stack;
-    stack.emplace(p, dir(O(p),0), root);
-    stack.emplace(p, dir(O(p),1), root);
+    stack.emplace(dir(O(p),0), root);
+    stack.emplace(dir(O(p),1), root);
     while(! stack.empty()) {
         StackNode node = stack.top();
         stack.pop();
