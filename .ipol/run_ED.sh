@@ -23,4 +23,4 @@ if [ "$8" = "true" ]; then
     tjunctions="-t tjunc.png";
 fi
 
-echo $bin/build/edgeDrawing $valid -g $grad -a $gap -l $length -s $sigma $tjunctions $input_0 edges.png
+$bin/build/edgeDrawing $valid -g $grad -a $gap -l $length -s $sigma $tjunctions $input_0 edges.png
