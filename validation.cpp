@@ -15,7 +15,7 @@
 static bool closed(const std::vector<Point>& e) {
     short dx = (short)e.front().x - (short)e.back().x,
           dy = (short)e.front().y - (short)e.back().y;
-    return dx*dy*dx*dy==1;
+    return std::max(dx*dx,dy*dy)==1;
 }
 
 /// Max-tree of edge intervals.
