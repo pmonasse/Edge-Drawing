@@ -6,12 +6,17 @@
  * @date 2026
  */
 
+// Linked to IPOL publication:
+// [1] Edge Drawing: A Fast Edge Segment Detector,
+// Adle Ben Salem and Pascal Monasse, IPOL, 2026
+
 #include "edge_drawing.h"
 #include "maxTree.h"
 #include <cmath>
 #include <cassert>
 
 /// Test if path is closed, that is, first and last points are 8-neighbors.
+/// [1] Eq. (2)
 static bool closed(const std::vector<Point>& e) {
     short dx = (short)e.front().x - (short)e.back().x,
           dy = (short)e.front().y - (short)e.back().y;
@@ -54,6 +59,7 @@ void Interval::addChild(Interval* c) {
 /// Add index \a i, adjusting \c beg and \c end of interval.
 /// \details It becomes the smallest containing interval containing index \a i.
 /// If the interval loops, it needs \a ext, a point outside the interval.
+/// [1] Algorithm 10 (interval extension)
 void Interval::add(int i, int ext) {
     if(i<beg && (!loop() || ext<i))
         beg = i;
@@ -62,6 +68,7 @@ void Interval::add(int i, int ext) {
 }
 
 /// Integrate sub-intervals to update fields \c beg and \c end.
+/// [1] Algorithm 10
 void Interval::fillBounds(int ext) {
     std::vector<Interval*>::iterator it, end=child.end();
     for(it=child.begin(); it!=end; ++it) {
@@ -106,8 +113,9 @@ int min_value_path(const Image<int>& G, const std::vector<Point>& e) {
 
 /// A contrario validation. \a lEpsNFA is the log10 of detection threshold.
 /// Its normal value is 0, or negative for more requiring detection.
-/// @param lEpsNFA log10 of max NFA for validation. 
-/// @param segLevel Segmentation level (0,1,other).
+/// \param lEpsNFA log10 of max NFA for validation. 
+/// \param segLevel Segmentation level (0,1,other).
+/// [1] Algorithm 12
 void ED::validateNFA(float lEpsNFA, int segLevel) {
     for(Point p={1,1}; p.y+1<S.h; p.y++)
         for(p.x=1; p.x+1<S.w; p.x++)
@@ -205,6 +213,7 @@ void build_tree_edges(std::vector<Interval*>& tree,
 
 /// Lowest common ancestor on max-tree.
 /// Rely on increasing value while going down-tree.
+/// [1] Part of Algorithm 11
 static Interval* lca(Interval* i1, Interval* i2) {
     while(i1 != i2) {
         assert(i1 && i2);
@@ -220,6 +229,7 @@ static Interval* lca(Interval* i1, Interval* i2) {
 /// \details Initially, intervals are singletons. This function finds all
 /// intervals that loop (assuming the edge is circular) and adjusts their field
 /// \c beg (to max) or \c end (to min) ensuring exclusion of \a ext.
+/// [1] Algorithm 11
 void tag_circular_intervals(std::vector<Interval*>& tree,
                             const std::vector<int>& par, int ext) {
     Interval* i1 = tree[0]? tree[0]: tree[par[0]];
@@ -234,7 +244,7 @@ void tag_circular_intervals(std::vector<Interval*>& tree,
 /// Fill bounds beg and end of every interval.
 /// \details Initally, they are all singletons based on canonical points. This
 /// involves adding first the private pixels of each node, then cumulating
-/// descendants.
+/// descendants. [1] Algorithm 10
 void fill_bounds(std::vector<Interval*>& tree,
                  const std::vector<int>& par, int root, int ext) {
     int n = (int)par.size();

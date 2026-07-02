@@ -8,6 +8,10 @@
  */
 // Code for NFA validation is in file validation.cpp
 
+// Linked to IPOL publication:
+// [1] Edge Drawing: A Fast Edge Segment Detector,
+// Adle Ben Salem and Pascal Monasse, IPOL, 2026
+
 #include "edge_drawing.h"
 #include <algorithm>
 #include <numeric>
@@ -26,11 +30,11 @@ struct StackNode {
 inline ED::Orientation orient(Direction d) {
     return (d==LEFT || d== RIGHT)? ED::HORIZONTAL: ED::VERTICAL;
 }
-inline Direction dir(ED::Orientation o, int i) {
+inline Direction dir(ED::Orientation o, int i) { // [1] Eq. (7)
     if(o==ED::HORIZONTAL) return i==0? LEFT: RIGHT;
     return i==0? UP: DOWN;
 }
-inline Point neighbor(Point p, Direction d) {
+inline Point neighbor(Point p, Direction d) { // [1] Eq. (9)
     Point q(p);
     switch(d) {
     case LEFT: --q.x; break;
@@ -63,7 +67,7 @@ ED::ED(const Image<int>& grad, const Image<float>& Theta,
     for(int y=0; y<O.h; y++)
         for(int x=0; x<O.w; x++) {
             float o = std::abs(Theta(x,y));
-            O(x,y) = (o<M_PI/4 || o>3*M_PI/4)? VERTICAL: HORIZONTAL;
+            O(x,y) = (o<M_PI/4 || o>3*M_PI/4)? VERTICAL: HORIZONTAL; // [1] (6)
         }
     computeAnchors(anchorThresh);
     joinAnchors();
@@ -140,6 +144,7 @@ void ED::joinAnchors() {
 }
 
 /// Get next pixel in chain based on node direction and gradient values.
+/// [1] Algorithm 5
 bool ED::nextPixelChain(StackNode& node) {
     Point q[3];
     q[0] = neighbor(node.pos,node.dir);
@@ -164,6 +169,7 @@ bool ED::nextPixelChain(StackNode& node) {
 
 /// Explore edge until finding a changed direction, hitting an edge pixel, or
 /// too low gradient. In the first case, two anchors are appended to \a stack.
+/// [1] Algorithm 3
 void ED::exploreChain(StackNode& node, ChainTree* chain,
                       std::stack<StackNode>& stack) {
     Orientation ori = orient(node.dir);
@@ -184,7 +190,7 @@ void ED::exploreChain(StackNode& node, ChainTree* chain,
     stack.emplace(dir(!ori,1), chain);
 }
 
-/// Build chain tree issued from anchor point \a p.
+/// Build chain tree issued from anchor point \a p. [1] Algorithm 2
 void ED::buildChainTree(ChainTree* root, Point p) {
     root->pts.push_back(p);
     S(p) = EDGE;
@@ -212,7 +218,7 @@ void ED::buildRootEdge(ChainTree* root) {
 
 /// From the chain tree at \a root, extract edge segments.
 /// Find the longest paths from nodes, prune them, yielding orphan trees,
-/// which are themselves handled in the same manner.
+/// which are themselves handled in the same manner. [1] Algorithm 6
 void ED::extractEdgesFromTree(ChainTree* root) {
     std::stack<ChainTree*> orphans;
     for(int i=0; i<2; i++)

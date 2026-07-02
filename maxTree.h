@@ -6,6 +6,15 @@
  * @date 2026
  */
 
+// Linked to IPOL publication:
+// [1] Edge Drawing: A Fast Edge Segment Detector,
+// Adle Ben Salem and Pascal Monasse, IPOL, 2026
+
+// Algorithm from
+// [2] Effective component tree computation with application to pattern
+// recognition in astronomical imaging
+// Berger et al., ICIP, 2007
+
 #ifndef MAX_TREE_H
 #define MAX_TREE_H
 
@@ -15,6 +24,7 @@
 #include <utility>
 
 /// Find_root of Union/Find algorithm.
+/// [1] Algorithm 9
 inline int uf_root(std::vector<int>& zpar, int i) {
     if(zpar[i]==i)
         return i;
@@ -27,6 +37,7 @@ inline int uf_root(std::vector<int>& zpar, int i) {
 /// \param[in] nbh Functor returning the range of neighbors of a node
 /// \param[out] iroot Node number of the tree root (if not null pointer)
 /// \return Parent map
+/// [1] Algorithm 8.
 /// Nodes of the graph are coded by integers from 0 to n-1. \a cmp compares
 /// values associated to the nodes. \a nbh provides the edges of the graph.
 /// Its operator() should return a std::pair of iterators delimiting the range

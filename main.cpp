@@ -7,6 +7,10 @@
  * @date 2025-2026
  */
 
+// Linked to IPOL publication:
+// [1] Edge Drawing: A Fast Edge Segment Detector,
+// Adle Ben Salem and Pascal Monasse, IPOL, 2026
+
 #include "edge_drawing.h"
 #include "image.h"
 #include "cmdLine.h"
@@ -61,12 +65,12 @@ void grad(Image<float> I[3], size_t c, Image<int>& G, Image<float>& Theta) {
             for(int x=0; x+1<G.w; x++) {
                 float c1 = I[0](x+1,y+1) - I[0](x,y);
                 float c2 = I[0](x+1,y) - I[0](x,y+1);
-                float gx = c1+c2, gy = c1-c2;
-                G(x,y) = (int)std::round(0.5f*std::hypot(gx, gy));
+                float gx = c1+c2, gy = c1-c2; // [1] Eq. (4)
+                G(x,y) = (int)std::round(0.5f*std::hypot(gx, gy)); // [1] (5)
                 if(G(x,y)>0)
                     Theta(x,y) = std::atan2(gy, gx);
             }
-    if(c==3) { // Di Zenzo color gradient
+    if(c==3) { // Di Zenzo color gradient. [1] Appendix A
         const float norm=1/std::sqrt(3);
         for(int y=0; y+1<G.h; y++)
             for(int x=0; x+1<G.w; x++) {
@@ -79,9 +83,9 @@ void grad(Image<float> I[3], size_t c, Image<int>& G, Image<float>& Theta) {
                 float gxx = dx[0]*dx[0] + dx[1]*dx[1] + dx[2]*dx[2]; // u.u
                 float gyy = dy[0]*dy[0] + dy[1]*dy[1] + dy[2]*dy[2]; // v.v
                 float gxy = dx[0]*dy[0] + dx[1]*dy[1] + dx[2]*dy[2]; // u.v
-                float theta = 0.5f * std::atan2(2*gxy, gxx-gyy);
+                float theta = 0.5f * std::atan2(2*gxy, gxx-gyy); // [1] Eq. (25)
                 Theta(x,y) = theta;
-                float v = std::sqrt((gxx+gyy +
+                float v = std::sqrt((gxx+gyy + // [1] Eq. (26)
                                      (gxx-gyy)*cos(2*theta) +
                                      2*gxy*sin(2*theta))*0.5f) * norm;
                 G(x,y) = (int)std::round(v);

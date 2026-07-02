@@ -7,9 +7,13 @@
  * @date 2025-2026
  */
 
+// Linked to IPOL publication:
+// [1] Edge Drawing: A Fast Edge Segment Detector,
+// Adle Ben Salem and Pascal Monasse, IPOL, 2026
+
 #include "chain_tree.h"
 
-/// Constructor with direction and parent
+/// Constructor with parent
 ChainTree::ChainTree(ChainTree* p)
 : len(0), path(-1) {
     child[0] = child[1] = nullptr;
@@ -42,6 +46,7 @@ int ChainTree::length() {
 /// Follow path to most distant leaf. The children not followed are roots of
 /// sub-trees and are gathered in \a oprhans. The method \a length must have
 /// been called, so that fields \a len and \a path are set.
+/// [1] Algorithm 7
 void ChainTree::pruneLongestPath(std::stack<ChainTree*>& orphans) {
     if(! child[path])
         return;
