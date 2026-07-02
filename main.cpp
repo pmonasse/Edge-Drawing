@@ -12,7 +12,7 @@
 #include "cmdLine.h"
 #include "io_png.h"
 #include <algorithm>
-#include <iostream>
+#include <chrono>
 #include <cstdlib>
 #include <cmath>
 
@@ -144,6 +144,8 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    using namespace std::chrono;
+    auto tstart = steady_clock::now();
     Image<float> channels[3];
     for(size_t i=0; i<c; i++) {
         channels[i].reset(w,h);
@@ -151,6 +153,7 @@ int main(int argc, char **argv) {
         blurGaussian(channels[i], sigma);
     }
     free(im);
+    auto tblur = steady_clock::now();
 
     Image<int> G; Image<float> Theta;
     grad(channels, c, G, Theta);
@@ -158,6 +161,11 @@ int main(int argc, char **argv) {
     ED ed(G, Theta, gradMin, anchorGap, lengthMin);
     if(cmd.used('e') || cmd.used('S'))
         ed.validateNFA(lEpsNFA, segLevel);
+    auto tend = steady_clock::now();
+    using ms = milliseconds;
+    std::cout << "time: "   << duration_cast<ms>(tend-tstart).count() << "ms"
+              << " (blur: " << duration_cast<ms>(tblur-tstart).count() << ')'
+              << std::endl;
 
     uchar* out = 0;
     if(argc>2) {
