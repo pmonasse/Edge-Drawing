@@ -151,12 +151,14 @@ int main(int argc, char **argv) {
     using namespace std::chrono;
     auto tstart = steady_clock::now();
     Image<float> channels[3];
-    for(size_t i=0; i<c; i++) {
+    for(size_t i=0; i<c && i<3; i++) {
         channels[i].reset(w,h);
         channels[i].read(im+i, c);
         blurGaussian(channels[i], sigma);
     }
     free(im);
+    if(c > 3)
+        c = 3;
     auto tblur = steady_clock::now();
 
     Image<int> G; Image<float> Theta;
